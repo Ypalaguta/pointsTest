@@ -1,0 +1,16 @@
+body{
+    background-color: rgba(150, 150, 150, 1);
+    padding: 0px;
+    margin: 0px;
+}
+#mainCanvas{
+    background:transparent;
+}
+
+#canvasBG{
+    width: 900px;
+    height: 500px;
+    position: absolute;
+    background: #000;
+    z-index: -1;
+}
