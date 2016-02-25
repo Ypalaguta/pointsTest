@@ -8,6 +8,11 @@
 //we need execute deaw on last element
 //we need 2nd buffer for canvas
 
+//we need pre-calculated position
+//off random when path ends
+//append delay paramether for delayed point start
+//we need new init points function
+
 //init main variables
 /*
  var canvas = document.getElementById('mainCanvas');     //canvas object
@@ -22,13 +27,13 @@
 // funny config
 var canvas = document.getElementById('mainCanvas');     //canvas object
 var canvasBack = document.getElementById('canvasBG');   //canvas background object
-var canvasBuffer = document.getElementById('buffer');   //canvas buffer object
+var canvasBuffer = document.createElement('canvas');   //canvas buffer object
 var canvasContext = canvas.getContext('2d');            //context of canvas
-var bufferContext = canvas.getContext('2d');            //context of buffer
+var bufferContext = canvasBuffer.getContext('2d');            //context of buffer
 var pointIncrement = 5;                                 //point size multiplier (5-mean at end of path point will increased for 500%)
-var pointsPerAnim = 3000;                                  //how much points we want send in 1 animation
+var pointsPerAnim = 100;                                  //how much points we want send in 1 animation
 var globalPointNumber = 0;                              //variable for sendPoint
-var framesPerAnimation = 50;                           //how much times we want redraw canvas in 1 animation
+var framesPerAnimation = 500;                           //how much times we want redraw canvas in 1 animation
 var pointSize = 1;
 
 
@@ -89,13 +94,16 @@ function drawPoints() {
         bufferContext.fillStyle = points[i].fillColor || '#ffffff';
         bufferContext.fill();
     }
-    var imgData=bufferContext.getImageData(0,0,canvas.height,canvas.width);
+    var imgData=bufferContext.getImageData(0,0,canvas.width,canvas.height);
     canvasContext.putImageData(imgData,0,0);
 }
 
 //create point object and push it to points massive
 
 function setPoints() {
+    var posXStep=canvHalfWidth / (pointsPerAnim/2);
+    var posYStep=canvHalfHeight / (pointsPerAnim/2);
+
     for (var i = 0; i < pointsPerAnim; i++) {
         points.push({
             size: pointSize,
@@ -113,7 +121,7 @@ function setPoints() {
             ownTimeout: '',
             last:0,
         });
-        sendPoint();
+        sendPoint(i,posXStep,posYStep);
 
     }
 
@@ -126,22 +134,23 @@ function setPoints() {
 //create interval which will change point position and size every *frame second
 //this function is not drawing points
 
-function sendPoint(pointNumber) {
-    pointNumber = pointNumber || globalPointNumber;
+function sendPoint(pointNumber, currentX, currentY) {
+    pointNumber = pointNumber;
     var longerLine;
     var current = points[pointNumber];
-
-    globalPointNumber++;
-
-    //current.destinationX = extRandom(0, canvas.width);
-    //current.destinationY = extRandom(0, canvas.height);
-    if (extRandom(0, 2)) {
-        current.destinationX = canvas.width;
-        current.destinationY = extRandom(0, canvas.height);
-    } else {
-        current.destinationX = extRandom(0, canvas.width);
+/*
+    if (pointNumber<points.length/2) {
+       current.destinationX = canvas.width;
+        current.destinationY = canvas.height/2 + currentY*pointNumber;
+   } else {
+        current.destinationX = canvHalfWidth + currentX*(pointNumber/2);
         current.destinationY = canvas.height;
-    }
+   }
+*/
+        current.destinationX = 0 + currentX * pointNumber;
+        current.destinationY = canvas.height - currentY * pointNumber;
+    current.stepY = destinationX/pointsPerAnim;
+    current.stepX = destinationY/pointsPerAnim;
 
 
     longerLine = (current.destinationY < current.destinationX) ? current.destinationX : current.destinationY;
@@ -150,23 +159,24 @@ function sendPoint(pointNumber) {
    // current.stepX = framesPerAnimation/current.destinationX;
 //    current.stepY =  framesPerAnimation/current.destinationY;
 
-
+/*
     if (current.destinationX == 0 || current.destinationX == canvas.width) {
         current.stepX = +(Math.sqrt((Math.pow(current.destinationX, 2) + Math.pow(current.destinationY, 2))) / framesPerAnimation).toFixed(2);
-        current.stepY = +(current.stepX * current.destinationY / canvas.height).toFixed(2);
-        // incCoord=1;
-    }
+        current.stepY = +((current.stepX * current.destinationY / canvas.height)).toFixed(2);
+      }
     else {
         current.stepY = +(Math.sqrt((Math.pow(current.destinationX, 2) + Math.pow(current.destinationY, 2))) / framesPerAnimation).toFixed(2);
-        current.stepX = +(current.stepY * current.destinationX / canvas.width).toFixed(2);
+        current.stepX = +((current.stepY * current.destinationX / canvas.width)).toFixed(2);
     }
+*/
+
 
     current.incPerPixels = longerLine / pointIncrement;
     current.incCoord = (current.destinationY < current.destinationX) ? 'x' : 'y';
 
-    if (pointsPerAnim == globalPointNumber)
+    if (pointsPerAnim == pointNumber)
         current.last=1;
-
+    /*
     if (extRandom(0, 2)) {
         current.destinationX *= -1;
     }
@@ -179,7 +189,7 @@ function sendPoint(pointNumber) {
     if (extRandom(0, 2)) {
         current.stepY *= -1;
     }
-/*
+
         current.ownTimeout = setTimeout(function () {
             pointIncFunc.call(current);
         }, globalPointNumber* extRandom(1, 10));
@@ -229,50 +239,6 @@ function pointIncAll(){
         if (current.tempX >= current.destinationX && current.tempY >= current.destinationY ||
             current.tempX < 0 || current.tempY < 0) {
             //   clearInterval(this.ownTimeout);
-            if (extRandom(0, 2)) {
-                current.destinationX = canvas.width;
-                current.destinationY = extRandom(0, canvas.height);
-            } else {
-                current.destinationX = extRandom(0, canvas.width);
-                current.destinationY = canvas.height;
-            }
-
-
-           var longerLine = (current.destinationY < current.destinationX) ? current.destinationX : current.destinationY;
-
-            //set point moving step
-            // current.stepX = framesPerAnimation/current.destinationX;
-//    current.stepY =  framesPerAnimation/current.destinationY;
-
-
-            if (current.destinationX == 0 || current.destinationX == canvas.width) {
-                current.stepX = +(Math.sqrt((Math.pow(current.destinationX, 2) + Math.pow(current.destinationY, 2))) / framesPerAnimation).toFixed(2);
-                current.stepY = +(current.stepX * current.destinationY / canvas.height).toFixed(2);
-                // incCoord=1;
-            }
-            else {
-                current.stepY = +(Math.sqrt((Math.pow(current.destinationX, 2) + Math.pow(current.destinationY, 2))) / framesPerAnimation).toFixed(2);
-                current.stepX = +(current.stepY * current.destinationX / canvas.width).toFixed(2);
-            }
-
-            current.incPerPixels = longerLine / pointIncrement;
-            current.incCoord = (current.destinationY < current.destinationX) ? 'x' : 'y';
-
-            if (pointsPerAnim == globalPointNumber)
-                current.last=1;
-
-            if (extRandom(0, 2)) {
-                current.destinationX *= -1;
-            }
-            if (extRandom(0, 2)) {
-                current.destinationY *= -1;
-            }
-            if (extRandom(0, 2)) {
-                current.stepX *= -1;
-            }
-            if (extRandom(0, 2)) {
-                current.stepY *= -1;
-            }
 
             current.tempX = current.startX;
             current.tempY = current.startY;
@@ -313,7 +279,7 @@ function pointIncFunc() {
 function run() {
     canvasPosition();
     setPoints();
-    setInterval(pointIncAll);
+   setInterval(pointIncAll,100);
   //  setInterval(drawPoints,10);
-    console.log(points[0]);
+   // console.log(points);
 }
