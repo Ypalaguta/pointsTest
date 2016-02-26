@@ -30,12 +30,12 @@ var canvasBack = document.getElementById('canvasBG');   //canvas background obje
 var canvasBuffer = document.createElement('canvas');   //canvas buffer object
 var canvasContext = canvas.getContext('2d');            //context of canvas
 var bufferContext = canvasBuffer.getContext('2d');            //context of buffer
-var pointIncrement = 5;                                 //point size multiplier (5-mean at end of path point will increased for 500%)
-var pointsPerAnim = 100;                                  //how much points we want send in 1 animation
+var pointIncrement = 10;                                 //point size multiplier (5-mean at end of path point will increased for 500%)
+var pointsPerAnim = 5000;                                  //how much points we want send in 1 animation
 var globalPointNumber = 0;                              //variable for sendPoint
-var framesPerAnimation = 500;                           //how much times we want redraw canvas in 1 animation
-var pointSize = 1;
-
+var framesPerAnimation = 20;                           //how much times we want redraw canvas in 1 animation
+var pointSize = 0.5;
+var doubleBuffered=false;
 
 var _framesPerSecond = 1;                               //how much times we will redraw canvas in 1 second (auto evaluated)
 var _pointSizeStep = 0;                                 //step of point increase per recalculate (auto evaluated)
@@ -47,7 +47,9 @@ var pageWidth;                                          //window.width
 var canvHalfHeight;                                     //canvas.height/2
 var canvHalfWidth;                                      //canvas.width/2
 var tempSize;                                           //temporary variable
-
+var currentX;
+var currentY;
+var randTo=(pointsPerAnim>1000)?1000:pointsPerAnim;
 //calculate top/left margins for canvas and black-background block
 
 var canvasPosition = function () {
@@ -72,6 +74,9 @@ var canvasPosition = function () {
     canvas.style.marginLeft = tempSize;
     canvasBack.style.marginLeft = tempSize;
 
+    currentX=canvas.width / (pointsPerAnim/4);
+    currentY=canvas.height / (pointsPerAnim/4);
+
 };
 
 //append recalculating of canvas position when window resized
@@ -86,24 +91,24 @@ window.addEventListener('resize', function () {
 //temporary function
 
 function drawPoints() {
-    clearCanvas(bufferContext);
+    var ourContext=(doubleBuffered)?bufferContext:canvasContext;
+    clearCanvas(ourContext);
     for (var i = 0; i < points.length; i++) {
-        bufferContext.beginPath();
-        bufferContext.arc(points[i].tempX, points[i].tempY, points[i].pointSize, 0, 2 * Math.PI, false);
+        ourContext.beginPath();
+        ourContext.arc(points[i].tempX, points[i].tempY, points[i].pointSize, 0, 2 * Math.PI, false);
         //   canvasContext.arc(5, canvHalfHeight, 5, 0, 2 * Math.PI, false);
-        bufferContext.fillStyle = points[i].fillColor || '#ffffff';
-        bufferContext.fill();
+        ourContext.fillStyle = points[i].fillColor || '#ffffff';
+        ourContext.fill();
     }
+    if(doubleBuffered){
     var imgData=bufferContext.getImageData(0,0,canvas.width,canvas.height);
-    canvasContext.putImageData(imgData,0,0);
+    ourContext.putImageData(imgData,0,0);
+    }
 }
 
 //create point object and push it to points massive
 
 function setPoints() {
-    var posXStep=canvHalfWidth / (pointsPerAnim/2);
-    var posYStep=canvHalfHeight / (pointsPerAnim/2);
-
     for (var i = 0; i < pointsPerAnim; i++) {
         points.push({
             size: pointSize,
@@ -116,12 +121,9 @@ function setPoints() {
             stepX: 0,
             stepY: 0,
             pointSize: pointSize,
-            incCoord: 'x',
-            incPerPixels: 0,
-            ownTimeout: '',
-            last:0,
+            delay:0,
         });
-        sendPoint(i,posXStep,posYStep);
+        sendPoint(i);
 
     }
 
@@ -134,84 +136,41 @@ function setPoints() {
 //create interval which will change point position and size every *frame second
 //this function is not drawing points
 
-function sendPoint(pointNumber, currentX, currentY) {
+function sendPoint(pointNumber) {
     pointNumber = pointNumber;
-    var longerLine;
     var current = points[pointNumber];
-/*
-    if (pointNumber<points.length/2) {
-       current.destinationX = canvas.width;
-        current.destinationY = canvas.height/2 + currentY*pointNumber;
-   } else {
-        current.destinationX = canvHalfWidth + currentX*(pointNumber/2);
+
+var curPoint;
+
+
+    if(pointNumber<=pointsPerAnim/4){
+        curPoint=pointNumber;
+        current.destinationX = 0 + currentX * curPoint;
         current.destinationY = canvas.height;
-   }
-*/
-        current.destinationX = 0 + currentX * pointNumber;
-        current.destinationY = canvas.height - currentY * pointNumber;
-    current.stepY = destinationX/pointsPerAnim;
-    current.stepX = destinationY/pointsPerAnim;
 
+     }
+    else if(pointNumber<=(pointsPerAnim/2)){
+        curPoint=pointNumber-(pointsPerAnim-Math.round(pointsPerAnim/4*3));
+        current.destinationX = canvas.width;
+        current.destinationY = 0 + currentY * curPoint;
+    }
+    else if(pointNumber<=(pointsPerAnim/4)*3){
 
-    longerLine = (current.destinationY < current.destinationX) ? current.destinationX : current.destinationY;
-
-    //set point moving step
-   // current.stepX = framesPerAnimation/current.destinationX;
-//    current.stepY =  framesPerAnimation/current.destinationY;
-
-/*
-    if (current.destinationX == 0 || current.destinationX == canvas.width) {
-        current.stepX = +(Math.sqrt((Math.pow(current.destinationX, 2) + Math.pow(current.destinationY, 2))) / framesPerAnimation).toFixed(2);
-        current.stepY = +((current.stepX * current.destinationY / canvas.height)).toFixed(2);
-      }
+        curPoint=pointNumber-Math.round(pointsPerAnim/2);
+        current.destinationX = 0;
+        current.destinationY = 0 + currentY * curPoint;
+    }
     else {
-        current.stepY = +(Math.sqrt((Math.pow(current.destinationX, 2) + Math.pow(current.destinationY, 2))) / framesPerAnimation).toFixed(2);
-        current.stepX = +((current.stepY * current.destinationX / canvas.width)).toFixed(2);
-    }
-*/
-
-
-    current.incPerPixels = longerLine / pointIncrement;
-    current.incCoord = (current.destinationY < current.destinationX) ? 'x' : 'y';
-
-    if (pointsPerAnim == pointNumber)
-        current.last=1;
-    /*
-    if (extRandom(0, 2)) {
-        current.destinationX *= -1;
-    }
-    if (extRandom(0, 2)) {
-        current.destinationY *= -1;
-    }
-    if (extRandom(0, 2)) {
-        current.stepX *= -1;
-    }
-    if (extRandom(0, 2)) {
-        current.stepY *= -1;
+        curPoint=pointNumber-(pointsPerAnim-Math.round(pointsPerAnim/4));
+        current.destinationX = 0 + currentX * curPoint;
+        current.destinationY = 0;
     }
 
-        current.ownTimeout = setTimeout(function () {
-            pointIncFunc.call(current);
-        }, globalPointNumber* extRandom(1, 10));
-    current.firstTime = 1;
-*/
+    current.stepX = ((current.destinationX-current.startX)/framesPerAnimation);
+    current.stepY = ((current.destinationY-current.startY)/framesPerAnimation);
 
 
-    //colour circles
-    /*
-     if(extRandom(0,2)) {
-     current.fillColor='#25F5F5';
-     }
-     else if(extRandom(0,2)) {
-     current.fillColor='#1FF9B2';
-     }
-     else if(extRandom(0,2)) {
-     current.fillColor='#1F94F9';
-     }
-     */
-
-
-
+  current.delay=extRandom(2,randTo);
 
 }
 
@@ -230,26 +189,34 @@ function extRandom(from, to) {
 //run our application
 
 function pointIncAll(){
+    requestAnimationFrame(pointIncAll);
     for (var i = 0; i < points.length; i++) {
-        var current=points[i];
-        current.tempX += current.stepX;
-        current.tempY += current.stepY;
-        current.pointSize += _pointSizeStep;
+        var current = points[i];
+        if (current.delay <= 0) {
+            current.tempX += current.stepX;
+            current.tempY += current.stepY;
+            current.pointSize += _pointSizeStep;
 
-        if (current.tempX >= current.destinationX && current.tempY >= current.destinationY ||
-            current.tempX < 0 || current.tempY < 0) {
-            //   clearInterval(this.ownTimeout);
+            if ((current.tempX >= current.destinationX && current.tempY >= current.destinationY)&&
+                (current.stepX>0&&current.stepY>0)||
+                current.tempX < 0 || current.tempY < 0) {
+                //   clearInterval(this.ownTimeout);
 
-            current.tempX = current.startX;
-            current.tempY = current.startY;
-            current.pointSize = pointSize;
+                current.tempX = current.startX;
+                current.tempY = current.startY;
+                current.pointSize = pointSize;
 
+            }
+        }
+        else
+        {
+            current.delay-=20;
         }
 
     }
  drawPoints();
 }
-
+/*
 function pointIncFunc() {
     if (this.firstTime) {
         this.firstTime = 0;
@@ -275,11 +242,16 @@ function pointIncFunc() {
     //    drawPoints();
 
 }
+*/
+
+function quad(progress) {
+    return Math.pow(progress, 2)
+}
 
 function run() {
     canvasPosition();
     setPoints();
-   setInterval(pointIncAll,100);
+    pointIncAll();
   //  setInterval(drawPoints,10);
    // console.log(points);
 }
